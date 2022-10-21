@@ -2,7 +2,6 @@ class Field {
     canvas = <HTMLCanvasElement>document.getElementById('canvas');
     ctx: CanvasRenderingContext2D | null = this.canvas?.getContext('2d');
     temp_line: Line | undefined = undefined;
-    collapse_line: Line | undefined = undefined;
     lines_arr: Line[] = [];
 
     constructor() {
@@ -66,31 +65,31 @@ class Field {
         this.render_lines();
         this.render_intersect_points();
     }
-
-    collapse(): void {
-        let x: number = (this.collapse_line!.start_coordinates.x + this.collapse_line!.end_coordinates.x) / 2;
-        let y: number = (this.collapse_line!.start_coordinates.y + this.collapse_line!.end_coordinates.y) / 2;
-        let x1: number, x2: number, y1: number, y2: number;
-        console.log("wokr")
-        setInterval(() => {
-            // if (this.collapse_line!.start_coordinates.x == x + 10)
-            //     return
-            x1 = this.collapse_line!.start_coordinates.x < x ? this.collapse_line!.start_coordinates.x + 1 : this.collapse_line!.start_coordinates.x - 1;
-            x2 = this.collapse_line!.end_coordinates.x < x ? this.collapse_line!.end_coordinates.x + 1 : this.collapse_line!.end_coordinates.x - 1;
-            y1 = this.collapse_line!.start_coordinates.y < y ? this.collapse_line!.start_coordinates.y + 1 : this.collapse_line!.start_coordinates.y - 1;
-            y2 = this.collapse_line!.end_coordinates.y < y ? this.collapse_line!.end_coordinates.y + 1 : this.collapse_line!.end_coordinates.y - 1;
-            console.log(x1, x2, x)
-            this.collapse_line?.set_start({ x: x1, y: y1 });
-            this.collapse_line?.set_end({ x: x2, y: y2 });
+    
+    collapse(line: Line): void {
+        let { start_coordinates, end_coordinates } = line!;
+        let x1: number, x2: number, y1: number, y2: number, tStart: number = 0, tEnd: number = 1;
+        let inter: number = setInterval(() => {
+            if (tStart.toFixed(2) == '0.50' || tEnd.toFixed(2) == '0.50') {
+                clearInterval(inter);
+                console.log(Date.now() - start_time, "3 sec tipa")
+                this.lines_arr.shift();
+            }
+            tStart += 0.001;
+            tEnd -= 0.001;
+            x1 = lerp(start_coordinates.x, end_coordinates.x, tStart);
+            x2 = lerp(start_coordinates.x, end_coordinates.x, tEnd);
+            y1 = lerp(start_coordinates.y, end_coordinates.y, tStart);
+            y2 = lerp(start_coordinates.y, end_coordinates.y, tEnd);
+            line?.set_start({ x: x1, y: y1 });
+            line?.set_end({ x: x2, y: y2 });
             requestAnimationFrame(this.render_all);
-        }, 100)
-        // this.lines_arr.shift();
+        }, 6)
     }
 
     collapse_lines(): void {
         for (let line of this.lines_arr) {
-            this.collapse_line = line;
-            this.collapse();
+            this.collapse(line);
         }
     }
 }
@@ -107,10 +106,6 @@ class Line {
         this.end_coordinates = point;
     }
 
-    lerp(A: number, B: number, t: number) {
-        return A + (B - A) * t;
-    }
-
     intersect_point(): Point[] {
         let points: Point[] = [];
         let tTop: number, uTop: number, bottom: number, t: number, u: number;
@@ -122,12 +117,16 @@ class Line {
                 t = tTop / bottom;
                 u = uTop / bottom;
                 if (t >= 0 && t <= 1 && u >= 0 && u <= 1) {
-                    points.push({ x: this.lerp(this.start_coordinates.x, this.end_coordinates.x, t), y: this.lerp(this.start_coordinates.y, this.end_coordinates.y, t) });
+                    points.push({ x: lerp(this.start_coordinates.x, this.end_coordinates.x, t), y: lerp(this.start_coordinates.y, this.end_coordinates.y, t) });
                 }
             }
         }
         return points;
     }
+}
+
+function lerp(A: number, B: number, t: number) {
+    return A + (B - A) * t;
 }
 
 interface Point {
@@ -136,6 +135,8 @@ interface Point {
 }
 
 let field = new Field();
+
+let start_time: number = 0;
 
 field.canvas.addEventListener("click", (event) => {
     field.set_point({ x: event.offsetX, y: event.offsetY });
@@ -149,4 +150,4 @@ field.canvas.addEventListener("mousemove", (event) => {
     field.render_temp_line({ x: event.offsetX, y: event.offsetY });
 }, false);
 
-document.getElementById('button')!.onclick = () => { console.log("Now not realised") };
+document.getElementById('button')!.onclick = () => { start_time = Date.now(); field.collapse_lines(); };
